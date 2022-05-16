@@ -3,9 +3,12 @@ package splunk
 import (
 	"encoding/json"
 	"errors"
-	"github.com/splunk/terraform-provider-splunk/client/models"
 	"net/http"
 	"regexp"
+
+	"github.com/splunk/go-splunk-client/pkg/entry"
+	"github.com/splunk/terraform-provider-splunk/client/models"
+	"github.com/splunk/terraform-provider-splunk/internal/resource"
 
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 )
@@ -28,14 +31,31 @@ func adminSAMLGroups() *schema.Resource {
 				},
 				Description: "Required. List of internal roles assigned to group.",
 			},
+			"use_legacy_client": {
+				Type:     schema.TypeBool,
+				Optional: true,
+				Default:  true,
+				Description: "Set to explicitly specify which client to use for this resource. Leave unset to use the provider's default. " +
+					"The legacy client is being replaced by a standalone Splunk client with improved error and drift handling. The legacy client will be deprecated in a future version.",
+			},
 		},
-		Read:   adminSAMLGroupsRead,
-		Create: adminSAMLGroupsCreate,
-		Delete: adminSAMLGroupsDelete,
-		Update: adminSAMLGroupsUpdate,
+		Read:   readFuncForHandler(samlGroupResourceObjectHandlerComposer(), adminSAMLGroupsRead),
+		Create: createFuncForHandler(samlGroupResourceObjectHandlerComposer(), adminSAMLGroupsCreate),
+		Delete: deleteFuncForHandler(samlGroupResourceObjectHandlerComposer(), adminSAMLGroupsDelete),
+		Update: updateFuncForHandler(samlGroupResourceObjectHandlerComposer(), adminSAMLGroupsUpdate),
 		Importer: &schema.ResourceImporter{
 			State: schema.ImportStatePassthrough,
 		},
+	}
+}
+
+func samlGroupResourceObjectHandlerComposer() func(*entry.SAMLGroup) resource.ResourceObjectManager {
+	return func(group *entry.SAMLGroup) resource.ResourceObjectManager {
+		return resource.ComposeResourceObjectHandler(
+			resource.NewClientID(&group.ID),
+			resource.NewDirectField("name", &group.ID.Title),
+			resource.NewDirectListField("roles", &group.Content.Roles),
+		)
 	}
 }
 
@@ -55,7 +75,7 @@ func adminSAMLGroupsCreate(d *schema.ResourceData, meta interface{}) error {
 
 func adminSAMLGroupsRead(d *schema.ResourceData, meta interface{}) error {
 	provider := meta.(*SplunkProvider)
-	name := d.Id()
+	name := d.Get("name").(string)
 
 	// Read the SAML group
 	resp, err := (*provider.Client).ReadAdminSAMLGroups(name)
@@ -74,6 +94,8 @@ func adminSAMLGroupsRead(d *schema.ResourceData, meta interface{}) error {
 	if entry == nil {
 		d.SetId("")
 		return nil
+	} else {
+		d.SetId(name)
 	}
 
 	if err = d.Set("name", entry.Name); err != nil {
@@ -90,7 +112,7 @@ func adminSAMLGroupsRead(d *schema.ResourceData, meta interface{}) error {
 func adminSAMLGroupsUpdate(d *schema.ResourceData, meta interface{}) error {
 	provider := meta.(*SplunkProvider)
 	adminSAMLGroupsObj := getAdminSAMLGroupsConfig(d)
-	err := (*provider.Client).UpdateAdminSAMLGroups(d.Id(), adminSAMLGroupsObj)
+	err := (*provider.Client).UpdateAdminSAMLGroups(d.Get("name").(string), adminSAMLGroupsObj)
 	if err != nil {
 		return err
 	}
@@ -100,7 +122,7 @@ func adminSAMLGroupsUpdate(d *schema.ResourceData, meta interface{}) error {
 
 func adminSAMLGroupsDelete(d *schema.ResourceData, meta interface{}) error {
 	provider := meta.(*SplunkProvider)
-	resp, err := (*provider.Client).DeleteAdminSAMLGroups(d.Id())
+	resp, err := (*provider.Client).DeleteAdminSAMLGroups(d.Get("name").(string))
 	if err != nil {
 		return err
 	}
