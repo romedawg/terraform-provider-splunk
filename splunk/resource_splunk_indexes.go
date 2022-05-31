@@ -637,7 +637,7 @@ func getIndexConfig(d *schema.ResourceData) (indexConfigObject *models.IndexObje
 	indexConfigObject.MaxBloomBackfillBucketAge = d.Get("max_bloom_backfill_bucket_age").(string)
 	indexConfigObject.MaxConcurrentOptimizes = d.Get("max_concurrent_optimizes").(int)
 	indexConfigObject.MaxDataSize = d.Get("max_data_size").(string)
-	indexConfigObject.MaxHotBuckets = d.Get("max_hot_buckets").(int)
+	indexConfigObject.MaxHotBuckets = d.Get("max_hot_buckets").(string)
 	indexConfigObject.MaxHotIdleSecs = d.Get("max_hot_idle_secs").(int)
 	indexConfigObject.MaxHotSpanSecs = d.Get("max_hot_span_secs").(int)
 	indexConfigObject.MaxMemMB = d.Get("max_mem_mb").(int)
