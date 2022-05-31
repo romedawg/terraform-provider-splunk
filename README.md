@@ -1,5 +1,8 @@
 # **Terraform provider for Splunk**
 
+Note - this was forked and udpated to support version Splunk v8.2.
+See [here](https://github.com/splunk/terraform-provider-splunk/issues/124) for details on why this was updated ans diverged
+from the provider.  One the issue is resolved by provider, this clone can be deleted.
 
 ### Requirements
 
